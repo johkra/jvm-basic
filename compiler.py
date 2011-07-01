@@ -142,14 +142,48 @@ cafebabe # magic bytes
 0001 # attributes count
 0009 # name idx
 0000001d # 29 attribute length
-00 01 00 01 00 00 00 05 2a b7 00 01 b1 00 00 00 01 00 0a 00 00 00 06 00 01 00 00 00 01
+00 01 # max stacks
+00 01 # max locals
+00 00 00 05 # code length
+2a # aload_0
+b7 # invokespecial
+00 #   idx 1
+01 #   idx 2
+b1 # return
+00 00 # Exception table length
+00 01 # attributes count
+00 0a # attribute name idx
+00 00 00 06 # attribute length
+00 01 # line number table length
+00 00 # code idx
+00 01 # line number
 0009 # access flags public static
 000b # 11 str idx
 000c # 12 desc idx
 0001 # attr count
 0009 # name idx
 00000025 # 37
-00 02 00 01 00 00 00 09 b2 00 02 12 03 b6 00 04 b1 00 00 00 01 00 0a 00 00 00 0a 00 02 00 00 00 03 00 08 00 04
+00 02 # max stacks
+00 01 # max locals
+00 00 00 09 # code length
+b2 # getstatic
+00 #   idx 1
+02 #   idx 2
+12 # ldc
+03 #   idx
+b6 # invokevirtual
+00 #   idx 1
+04 #   idx 2
+b1 # return
+00 00 # Exception table length
+00 01 # attributes count
+00 0a # attribute name idx
+00 00 00 0a # attribute length
+00 02 # line number table length
+00 00 # code idx
+00 03 # line number
+00 08 # code idx
+00 04 # line number
 0001 # attribute count
 000d # attr name idx 13
 00000002 # attribute length
