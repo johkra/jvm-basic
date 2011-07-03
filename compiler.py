@@ -1,191 +1,168 @@
 #!/usr/bin/env python3
-
-# Do the simplest thing which might possibly work
+"""
+Create a a java class file.
+"""
 
 import struct
 
-code = b""
-constant_pool_size = 0
-interface_count = 0
-field_count = 0
-method_count = 0
-attribute_count = 0
+class ClassFile:
+    """Class to create a java class file."""
+    constant_pool = []
+    interfaces = []
+    fields = []
+    methods = []
+    attributes = []
 
-# Magic bytes
-code += struct.pack("!I", 0xcafebabe)
-# Class file format minor version
-code += struct.pack("!h", 0)
-# Class file format. 50 = java 1.6
-code += struct.pack("!h", 50)
-# Constant pool count = # of entries + 1
-code += struct.pack("!h", constant_pool_size + 1)
-# Constant pool
-code += b""
-# Access flags
-code += struct.pack("!h", 0)
-# this class, index in constant pool
-code += struct.pack("!h", 0)
-# super class, index in constant pool
-code += struct.pack("!h", 0)
-# Interface count = # of entries in interface table
-code += struct.pack("!h", interface_count)
-# Interface table
-code += b""
-# Field count = # of entries in field table
-code += struct.pack("!h", field_count)
-# Field table
-code += b""
-# Method count
-code += struct.pack("!h", method_count)
-# Method table
-code += b""
-# Attribute count
-code += struct.pack("!h", attribute_count)
-# Attribute table
-code += b""
+    ASCIZ = 0x01
+    CLASS = 0x07
+    STRREF = 0x08
+    FIELD = 0x09
+    METHOD = 0x0a
+    NAME_AND_TYPE = 0x0c
+
+    def __init__(self, class_name, source_file):
+        """"Initialize class by giving the class name and the source file."""
+        self.this_class_idx = self.add_class_to_const_pool(class_name)
+        self.super_class_idx = self.add_class_to_const_pool("java/lang/Object")
+        self.add_string_ref_attribute("SourceFile", source_file)
+    
+    def add_string_ref_attribute(self, name, value):
+        """Add a string reference attribute to the attributes section of the
+        class.
+        """
+        name_idx = self.add_string_to_const_pool(name)
+        value_idx = self.add_string_to_const_pool(value)
+        self.attributes.append((name_idx, value_idx))
+    
+    def _find_string_in_const_pool(self, string):
+        """Private. Find the index of a string in the constant pool.
+        Return the index or None. Indices start with 1.
+        """
+        for idx, constant in enumerate(self.constant_pool, 1):
+            const_type, value = constant
+            if const_type == self.ASCIZ and value == string:
+                return idx
+        return None
+
+    def _add_const_to_const_pool(self, const):
+        """Private. Add a constant to the constant pool. Return the index."""
+        self.constant_pool.append( const )
+        return len(self.constant_pool)
+
+    def add_string_to_const_pool(self, string):
+        """Add a string to the constant pool. Return the index."""
+        idx = self._find_string_in_const_pool(string)
+        if not idx:
+            idx = self._add_const_to_const_pool((self.ASCIZ, string))
+        return idx
+
+    def _add_asciz_ref_to_const_pool(self, const_type, string):
+        """Private. Add a reference to a string for a constant type to the
+        constant pool. Return the index.
+        """
+        idx = self.add_string_to_const_pool(string)
+        return self._add_const_to_const_pool((const_type, idx))
+
+    def add_string_ref_to_const_pool(self, string):
+        """Add a string reference to the constant pool. Return the index."""
+        return self._add_asciz_ref_to_const_pool(self.STRREF, string)
+
+    def add_name_and_type_to_const_pool(self, name, type_name):
+        """Add Name and Type to constant pool. Return the index."""
+        name_idx = self.add_string_to_const_pool(name)
+        type_idx = self.add_string_to_const_pool(type_name)
+        const = (self.NAME_AND_TYPE, (name_idx, type_idx))
+        return self._add_const_to_const_pool(const)
+
+    def add_class_to_const_pool(self, class_name):
+        """Add class to constant pool. Return the index."""
+        return self._add_asciz_ref_to_const_pool(self.CLASS, class_name)
+
+    def add_field_to_const_pool(self, class_name, name, type_name):
+        """Add field to constant pool. Return the index."""
+        class_idx = self.add_class_to_const_pool(class_name)
+        name_type_idx = self.add_name_and_type_to_const_pool(name, type_name)
+        const = (self.FIELD, (class_idx, name_type_idx))
+        return self._add_const_to_const_pool(const)
+
+    def add_method_to_const_pool(self, class_name, name, type_name):
+        """Add method to constant pool. Return the index."""
+        class_idx = self.add_class_to_const_pool(class_name)
+        name_type_idx = self.add_name_and_type_to_const_pool(name, type_name)
+        const = (self.METHOD, (class_idx, name_type_idx))
+        return self._add_const_to_const_pool(const)
+
+    def _write_constant_pool(self):
+        """Private. Write the binary representation of the constant pool."""
+        const_pool = b""
+        for const in self.constant_pool:
+            const_type, value = const
+            const_pool += struct.pack("B", const_type)
+            if type(value) == str:
+                value = value.encode("utf8")
+                const_pool += struct.pack("!h", len(value))
+                const_pool += value
+            if type(value) == int:
+                const_pool += struct.pack("!h", value)
+            if type(value) == tuple:
+                const_pool += struct.pack("!h", value[0])
+                const_pool += struct.pack("!h", value[1])
+        return const_pool
+
+    def _write_attributes(self):
+        """Private. Write the binary representation of the attributes."""
+        attributes = b""
+        for attribute in self.attributes:
+            name_idx, value_idx = attribute
+            attributes += struct.pack("!h", name_idx)
+            attributes += struct.pack("!i", 2)
+            attributes += struct.pack("!h", value_idx)
+        return attributes
 
 
-print(code)
-"""
-cafebabe # magic bytes
-0000 # minor version
-0032 # major version
-001d # 29 -> 28 entries in constant pool
-0a # (1) method reference
-0006 # Class reference index
-000f # Name and type descriptor index
-09 # (2) field reference
-0010 # Class reference index
-0011 # Name and type descriptor index
-08 # (3) String refence
-0012 # Index of string 
-0a # (4) method reference
-0013 # class idx
-0014 # name idx
-07 # (5) class reference
-0015 # 21 str idx
-07 # (6)
-0016 # 21 str idx
-01 # (7) str
-0006 # str length
-3c 69 6e 69 74 3e # <init>
-01 # (8) str
-0003 # str len
-28 29 56 # ()V
-01 # (9) str
-0004 # str len
-43 6f 64 65 # Code
-01 # (10)
-000f # 15 str len
-4c 69 6e 65 4e 75 6d 62 65 72 54 61 62 6c 65 # LineNumberTable
-01 # (11)
-0004 #
-6d 61 69 6e # main
-01 # (12)
-0016 # 22
-28 5b 4c 6a 61 76 61 2f 6c 61 6e 67 2f 53 74 72 69 6e 67 3b 29 56 # ([Ljava/lang/String;)V
-01 # (13)
-000a # 10
-53 6f 75 72 63 65 46 69 6c 65 # SourceFile
-01 # (14)
-000b # 11
-6a 68 65 6c 6c 6f 2e 6a 61 76 61 # jhello.java
-0c # (15) Name and type
-0007 # idx name
-0008 # idx type
-07 # (16) Class ref
-0017 # ref to 23
-0c # (17)
-0018 # ref to 24
-0019 # ref to 25
-01 # (18)
-000c # 12
-48 65 6c 6c 6f 2c 20 77 6f 72 6c 64 # Hello, world
-07 # (19)
-001a # ref to 26
-0c # (20)
-001b # 27
-001c # 28
-01 # (21)
-0006 # 
-4a 68 65 6c 6c 6f # Jhello
-01 # (22)
-0010 # 16
-6a 61 76 61 2f 6c 61 6e 67 2f 4f 62 6a 65 63 74 # java/lang/Object
-01 # (23)
-0010 # 16
-6a 61 76 61 2f 6c 61 6e 67 2f 53 79 73 74 65 6d # java/lang/System
-01 # (24)
-0003 #
-6f 75 74 # out
-01 # (25)
-0015 # 21
-4c 6a 61 76 61 2f 69 6f 2f 50 72 69 6e 74 53 74 72 65 61 6d 3b # Ljava/io/PrintStream;
-01 # (26)
-0013 # 19
-6a 61 76 61 2f 69 6f 2f 50 72 69 6e 74 53 74 72 65 61 6d # java/io/PrintStream
-01 # (27)
-0007 #
-70 72 69 6e 74 6c 6e # println
-01 # (28)
-0015 # 21 
-28 4c 6a 61 76 61 2f 6c 61 6e 67 2f 53 74 72 69 6e 67 3b 29 56 # (Ljava/lang/String;)V
-0020 # access flag -> ACC_SUPER
-0005 # this class index
-0006 # super class index
-0000 # interface count
-0000 # field count
-0002 # method count
-0000 # access flags
-0007 # str idx
-0008 # descriptor idx
-0001 # attributes count
-0009 # name idx
-0000001d # 29 attribute length
-00 01 # max stacks
-00 01 # max locals
-00 00 00 05 # code length
-2a # aload_0
-b7 # invokespecial
-00 #   idx 1
-01 #   idx 2
-b1 # return
-00 00 # Exception table length
-00 01 # attributes count
-00 0a # attribute name idx
-00 00 00 06 # attribute length
-00 01 # line number table length
-00 00 # code idx
-00 01 # line number
-0009 # access flags public static
-000b # 11 str idx
-000c # 12 desc idx
-0001 # attr count
-0009 # name idx
-00000025 # 37
-00 02 # max stacks
-00 01 # max locals
-00 00 00 09 # code length
-b2 # getstatic
-00 #   idx 1
-02 #   idx 2
-12 # ldc
-03 #   idx
-b6 # invokevirtual
-00 #   idx 1
-04 #   idx 2
-b1 # return
-00 00 # Exception table length
-00 01 # attributes count
-00 0a # attribute name idx
-00 00 00 0a # attribute length
-00 02 # line number table length
-00 00 # code idx
-00 03 # line number
-00 08 # code idx
-00 04 # line number
-0001 # attribute count
-000d # attr name idx 13
-00000002 # attribute length
-000e # value
-"""
+    def write_class(self):
+        """Write the binary representation of the class. Returns a bytes string.
+        """
+        code = b""
+        # Magic bytes
+        code += struct.pack("!I", 0xcafebabe)
+        # Class file format minor version
+        code += struct.pack("!h", 0)
+        # Class file format. 50 = java 1.6
+        code += struct.pack("!h", 50)
+        # Constant pool count = # of entries + 1
+        code += struct.pack("!h", len(self.constant_pool) + 1)
+        # Constant pool
+        code += self._write_constant_pool()
+        # Access flags
+        code += struct.pack("!h", 0)
+        # this class, index in constant pool
+        code += struct.pack("!h", self.this_class_idx)
+        # super class, index in constant pool
+        code += struct.pack("!h", self.super_class_idx)
+        # Interface count = # of entries in interface table
+        code += struct.pack("!h", len(self.interfaces))
+        # Interface table
+        code += b""
+        # Field count = # of entries in field table
+        code += struct.pack("!h", len(self.fields))
+        # Field table
+        code += b""
+        # Method count
+        code += struct.pack("!h", len(self.methods))
+        # Method table
+        code += b""
+        # Attribute count
+        code += struct.pack("!h", len(self.attributes))
+        # Attribute table
+        code += self._write_attributes()
+        return code
+
+def main():
+    """Main function. Creates a test class file."""
+    code = ClassFile("Jhello", "jhello.java")
+    
+    open("Test.class", "wb").write(code.write_class())
+
+if __name__ == "__main__":
+    main()
