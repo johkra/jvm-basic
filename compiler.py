@@ -34,27 +34,25 @@ class ClassFile:
         value_idx = self.add_string_to_const_pool(value)
         self.attributes.append((name_idx, value_idx))
     
-    def _find_string_in_const_pool(self, string):
-        """Private. Find the index of a string in the constant pool.
-        Return the index or None. Indices start with 1.
-        """
+    def _find_in_const_pool(self, const_type, value):
+        """Private find existing constant in constant pool."""
         for idx, constant in enumerate(self.constant_pool, 1):
-            const_type, value = constant
-            if const_type == self.ASCIZ and value == string:
+            _const_type, _value = constant
+            if _const_type == const_type and _value == value:
                 return idx
         return None
 
     def _add_const_to_const_pool(self, const):
         """Private. Add a constant to the constant pool. Return the index."""
-        self.constant_pool.append( const )
-        return len(self.constant_pool)
+        idx = self._find_in_const_pool(const[0], const[1])
+        if not idx:
+            self.constant_pool.append( const )
+            idx = len(self.constant_pool)
+        return idx
 
     def add_string_to_const_pool(self, string):
         """Add a string to the constant pool. Return the index."""
-        idx = self._find_string_in_const_pool(string)
-        if not idx:
-            idx = self._add_const_to_const_pool((self.ASCIZ, string))
-        return idx
+        return self._add_const_to_const_pool((self.ASCIZ, string))
 
     def _add_asciz_ref_to_const_pool(self, const_type, string):
         """Private. Add a reference to a string for a constant type to the
@@ -92,6 +90,23 @@ class ClassFile:
         const = (self.METHOD, (class_idx, name_type_idx))
         return self._add_const_to_const_pool(const)
 
+    def add_method(self, access_flags, name, type_name, max_stacks, max_locals, bytecode):
+        """Add method to methods table"""
+        method = b""
+        method += struct.pack("!h", access_flags)
+        method += struct.pack("!h", self.add_string_to_const_pool(name))
+        method += struct.pack("!h", self.add_string_to_const_pool(type_name))
+        method += struct.pack("!h", 1) # attributes count
+        method += struct.pack("!h", self.add_string_to_const_pool("Code"))
+        method += struct.pack("!I", 2 + 2 + 4 + len(bytecode) + 2 + 2)
+        method += struct.pack("!h", max_stacks)
+        method += struct.pack("!h", max_locals)
+        method += struct.pack("!I", len(bytecode))
+        method += bytecode
+        method += struct.pack("!h", 0) # exception count
+        method += struct.pack("!h", 0) # arguments count
+        self.methods.append(method)
+
     def _write_constant_pool(self):
         """Private. Write the binary representation of the constant pool."""
         const_pool = b""
@@ -115,7 +130,7 @@ class ClassFile:
         for attribute in self.attributes:
             name_idx, value_idx = attribute
             attributes += struct.pack("!h", name_idx)
-            attributes += struct.pack("!i", 2)
+            attributes += struct.pack("!I", 2)
             attributes += struct.pack("!h", value_idx)
         return attributes
 
@@ -135,7 +150,7 @@ class ClassFile:
         # Constant pool
         code += self._write_constant_pool()
         # Access flags
-        code += struct.pack("!h", 0)
+        code += struct.pack("!h", 0x0020)
         # this class, index in constant pool
         code += struct.pack("!h", self.this_class_idx)
         # super class, index in constant pool
@@ -151,7 +166,7 @@ class ClassFile:
         # Method count
         code += struct.pack("!h", len(self.methods))
         # Method table
-        code += b""
+        code += b"".join(self.methods)
         # Attribute count
         code += struct.pack("!h", len(self.attributes))
         # Attribute table
@@ -160,7 +175,14 @@ class ClassFile:
 
 def main():
     """Main function. Creates a test class file."""
-    code = ClassFile("Jhello", "jhello.java")
+    code = ClassFile("Test", "test.java")
+    method_bytecode = b"\x2a\xb7" + struct.pack("!h", 
+        code.add_method_to_const_pool("java/lang/Object", "<init>", "()V")
+    ) + b"\xb1"
+    code.add_method(0x0000, "<init>", "()V", 1, 1, method_bytecode)
+    
+    method_bytecode = b"\xb2" + struct.pack("!h", code.add_field_to_const_pool("java/lang/System", "out", "Ljava/io/PrintStream;")) + b"\x12" + struct.pack("B", code.add_string_ref_to_const_pool("Hello, world")) + b"\xb6" + struct.pack("!h", code.add_method_to_const_pool("java/io/PrintStream", "println", "(Ljava/lang/String;)V")) + b"\xb1"
+    code.add_method(0x0009, "main", "([Ljava/lang/String;)V", 2, 1, method_bytecode)
     
     open("Test.class", "wb").write(code.write_class())
 
