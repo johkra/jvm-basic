@@ -3,11 +3,13 @@
 Compile a basic file to a class file.
 """
 
-import re
+import fileinput
+import pprint
 import struct
 import sys
 
 from class_file import ClassFile
+from BASIC_parser import parse_to_AST
 
 def create_code(file_name, message):
     """Write the compile code to a class file"""
@@ -22,22 +24,18 @@ def create_code(file_name, message):
     
     open(file_name.capitalize() + ".class", "wb").write(code.write_class())
 
-def parse(code):
-    """Parse basic file. Supports comments, empty lines and static print statements"""
-    messages = []
-    for line in code.split("\n"):
-        line = re.sub(r"'(.*)$", "", line).strip()
-        match = re.match(r'^PRINT[\s]+"(.*)"$',line, re.I)
-        if match:
-            messages.append(match.groups()[0])
-    return "\n".join(messages)
-
 def main():
     """Main function. Compiles a basic file to a class file."""
     if len(sys.argv) != 2:
         print("Usage: %s file.bas" % (sys.argv[0]))
         sys.exit(1)
-    message = parse(open(sys.argv[1]).read())
+    AST = parse_to_AST(fileinput.input())
+    messages = []
+    for el in AST:
+        if el.__name__ == "statement":
+            child1 = el.what[0]
+            messages.append(child1.what[0].what[0])
+    message = "\n".join(messages)
     create_code(sys.argv[1].replace(".bas",""), message)
 
 if __name__ == "__main__":
