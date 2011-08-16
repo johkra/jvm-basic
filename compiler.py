@@ -79,7 +79,12 @@ def load_string_value(self, node):
 def load_int_value(self, node):
     if node.__name__ == "numeric":
         value = int(node.what)
-        return SIPUSH + struct.pack("!h", value)
+        try:
+            bytecode = SIPUSH + struct.pack("!h", value)
+        except struct.error:
+            print("Numeric constant %d is outside allowed range (-32768..32767) in %s" % (value, node.__name__.line))
+            sys.exit(-1)
+        return bytecode
     return ILOAD + struct.pack("B", self.vars[node.what])
 
 def print_statement(self, args):
