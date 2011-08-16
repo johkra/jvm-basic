@@ -32,7 +32,7 @@ def string_variable():
     return re.compile(r'\w+\$')
 
 def numeric():
-    return re.compile(r'\d+.\d+|\d+')
+    return re.compile(r'-?\d+')
 
 def string():
     return '"', re.compile(r'[^"]*'), '"'
