@@ -22,6 +22,9 @@ from lib.pyPEG import parse, keyword, _and, _not
 #def function():         return keyword("function"), symbol, parameterlist, block
 #def simpleLanguage():   return function
 
+def comment():
+    return [re.compile(r"^'.*"), re.compile(r"^REM.*")]
+
 def string():
     return '"', re.compile(r'[^"]*'), '"'
 
@@ -39,4 +42,4 @@ def BASIC():
 
 def parse_to_AST(code):
     """Parse BASIC file. Returns pyAST."""
-    return parse(BASIC, code)
+    return parse(BASIC, code, skipComments=comment)
