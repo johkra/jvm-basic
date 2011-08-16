@@ -4,7 +4,6 @@ Compile a basic file to a class file.
 """
 
 import fileinput
-import pprint
 import re
 import struct
 import sys
