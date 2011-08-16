@@ -243,31 +243,16 @@ class parser(object):
 
     def lineNo(self):
         if not(self.lines): return ""
-        if self.restlen == -1: return ""
+
         parsed = self.textlen - self.restlen
+        if self.restlen == -1:
+            parsed = 0
 
-        left, right = 0, len(self.lines)
-
-        while True:
-            mid = int((right + left) / 2)
-            if self.lines[mid][0] <= parsed:
-                try:
-                    if self.lines[mid + 1][0] >= parsed:
-                        try:
-                            return self.lines[mid + 1][1] + ":" + self.lines[mid + 1][2]
-                        except:
-                            return ""
-                    else:
-                        left = mid + 1
-                except:
-                    try:
-                        return self.lines[mid + 1][1] + ":" + self.lines[mid + 1][2]
-                    except:
-                        return ""
-            else:
-                right = mid - 1
-            if left > right:
-                return ""
+        for i, line in enumerate(self.lines):
+            if line[0] >= parsed:
+                i = i - 1
+                break
+        return self.lines[i][1] + ":" + str(self.lines[i][2] + 1)
 
 # plain module API
 
@@ -334,6 +319,6 @@ def parse(language, lineSource, skipWS = True, skipComments = None, packrat = Fa
         lineNo += 1
         nn -= 1
         lineCont = orig.splitlines()[nn]
-        raise SyntaxError("syntax error in " + file + ":" + lineNo + ": " + lineCont)
+        raise SyntaxError("syntax error in " + file + ":" + str(lineNo) + ": " + lineCont)
 
     return result
