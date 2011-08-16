@@ -72,13 +72,13 @@ def print_statement(self, args):
 
     method_print_stream = self.code.add_method_to_const_pool("java/io/PrintStream", "println", "(Ljava/lang/String;)V")
     self.method_bytecode += GETSTATIC + struct.pack("!h", field_print_stream)
-    self.method_bytecode += load_string_value(self, args[0].what[0])
+    self.method_bytecode += load_string_value(self, args[0])
     self.method_bytecode += INVOKEVIRTUAL + struct.pack("!h", method_print_stream)
 
 def string_assignment(self, args):
     var_name = args[0].what
     var = self._add_var(var_name)
-    self.method_bytecode += load_string_value(self, args[1].what[0])
+    self.method_bytecode += load_string_value(self, args[1])
     self.method_bytecode += ASTORE + struct.pack("B", self.vars[var_name])
 
 def main():

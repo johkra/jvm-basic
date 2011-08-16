@@ -37,23 +37,26 @@ def numeric():
 def string():
     return '"', re.compile(r'[^"]*'), '"'
 
-def string_value():
+def _string_value():
     return [string_variable, string]
 
-def numeric_value():
+def _numeric_value():
     return [numeric_variable, numeric]
 
+def _value():
+    return [_string_value, _numeric_value]
+
 def numeric_assignment():
-    return (numeric_variable, "=", numeric_value)
+    return (numeric_variable, "=", _numeric_value)
 
 def string_assignment():
-    return (string_variable, "=" , string_value)
+    return (string_variable, "=" , _string_value)
 
 def assignment():
     return [numeric_assignment, string_assignment]
 
 def print_statement():
-    return keyword("PRINT"), string_value
+    return keyword("PRINT"), _value
 
 def statement():
     return [print_statement, assignment]
