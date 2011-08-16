@@ -65,6 +65,14 @@ class Compiler:
 
         open(self.class_name + ".class", "wb").write(self.code.write_class())
 
+def get_var_idx(self, node):
+    try:
+        var_idx = self.vars[node.what]
+    except KeyError:
+        print("Unknown variable '%s' in %s" % (node.what, node.__name__.line))
+        sys.exit(-1)
+    return var_idx
+
 def load_string_value(self, node):
     if re.match(r"^numeric", node.__name__):
         bytecode = load_int_value(self, node)
@@ -74,7 +82,7 @@ def load_string_value(self, node):
     if node.__name__ == "string":
         print_value = self.code.add_string_ref_to_const_pool(node.what[0])
         return LDC + struct.pack("B", print_value)
-    return ALOAD + struct.pack("B", self.vars[node.what])
+    return ALOAD + struct.pack("B", get_var_idx(self, node))
 
 def load_int_value(self, node):
     if node.__name__ == "numeric":
@@ -85,7 +93,7 @@ def load_int_value(self, node):
             print("Numeric constant %d is outside allowed range (-32768..32767) in %s" % (value, node.__name__.line))
             sys.exit(-1)
         return bytecode
-    return ILOAD + struct.pack("B", self.vars[node.what])
+    return ILOAD + struct.pack("B", get_var_idx(self, node))
 
 def print_statement(self, args):
     field_print_stream = self.code.add_field_to_const_pool("java/lang/System", "out", "Ljava/io/PrintStream;")
