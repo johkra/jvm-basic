@@ -5,6 +5,7 @@ Compile a basic file to a class file.
 
 import fileinput
 import pprint
+import re
 import struct
 import sys
 
@@ -15,8 +16,10 @@ from lib.pyPEG import Symbol
 ALOAD = b"\x19"
 ASTORE = b"\x3a"
 GETSTATIC = b"\xb2"
+ILOAD = b"\x15"
 INVOKESTATIC = b"\xb8"
 INVOKEVIRTUAL = b"\xb6"
+ISTORE = b"\x36"
 LDC = b"\x12"
 SIPUSH = b"\x11"
 
@@ -64,16 +67,21 @@ class Compiler:
         open(self.class_name + ".class", "wb").write(self.code.write_class())
 
 def load_string_value(self, node):
-    if node.__name__ == "numeric":
-        value = int(node.what)
+    if re.match(r"^numeric", node.__name__):
+        bytecode = load_int_value(self, node)
         method_int_to_string = self.code.add_method_to_const_pool("java/lang/Integer", "toString", "(I)Ljava/lang/String;")
-        bytecode  = SIPUSH + struct.pack("!h", value)
         bytecode += INVOKESTATIC + struct.pack("!h", method_int_to_string)
         return bytecode
     if node.__name__ == "string":
         print_value = self.code.add_string_ref_to_const_pool(node.what[0])
         return LDC + struct.pack("B", print_value)
     return ALOAD + struct.pack("B", self.vars[node.what])
+
+def load_int_value(self, node):
+    if node.__name__ == "numeric":
+        value = int(node.what)
+        return SIPUSH + struct.pack("!h", value)
+    return ILOAD + struct.pack("B", self.vars[node.what])
 
 def print_statement(self, args):
     field_print_stream = self.code.add_field_to_const_pool("java/lang/System", "out", "Ljava/io/PrintStream;")
@@ -89,6 +97,12 @@ def string_assignment(self, args):
     self.method_bytecode += load_string_value(self, args[1])
     self.method_bytecode += ASTORE + struct.pack("B", self.vars[var_name])
 
+def numeric_assignment(self, args):
+    var_name = args[0].what
+    var = self._add_var(var_name)
+    self.method_bytecode += load_int_value(self, args[1])
+    self.method_bytecode += ISTORE + struct.pack("B", self.vars[var_name])
+
 def main():
     """Main function. Compiles a basic file to a class file."""
     if len(sys.argv) != 2:
@@ -97,7 +111,7 @@ def main():
     messages = []
 
     file_name = sys.argv[1]
-    compiler = Compiler(file_name, [print_statement, string_assignment])
+    compiler = Compiler(file_name, [print_statement, string_assignment, numeric_assignment])
     compiler.parse(fileinput.input())
     compiler.save()
 
