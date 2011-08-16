@@ -42,18 +42,6 @@ rest_regex = re.compile(r".*")
 
 print_trace = False
 
-def u(text):
-    if isinstance(text, BaseException):
-        text = text.args[0]
-    if type(text) is str:
-        return text
-    if isinstance(text, str):
-        if sys.stdin.encoding:
-            return codecs.decode(text, sys.stdin.encoding)
-        else:
-            return codecs.decode(text, "utf-8")
-    return str(text)
-
 def skip(skipper, text, pattern, skipWS, skipComments):
     if skipWS:
         t = text.strip()
@@ -251,7 +239,7 @@ class parser(object):
                 syntaxError()
 
         else:
-            raise SyntaxError("illegal type in grammar: " + u(pattern_type))
+            raise SyntaxError("illegal type in grammar: " + pattern_type)
 
     def lineNo(self):
         if not(self.lines): return ""
@@ -266,14 +254,14 @@ class parser(object):
                 try:
                     if self.lines[mid + 1][0] >= parsed:
                         try:
-                            return u(self.lines[mid + 1][1]) + ":" + u(self.lines[mid + 1][2])
+                            return self.lines[mid + 1][1] + ":" + self.lines[mid + 1][2]
                         except:
                             return ""
                     else:
                         left = mid + 1
                 except:
                     try:
-                        return u(self.lines[mid + 1][1]) + ":" + u(self.lines[mid + 1][2])
+                        return self.lines[mid + 1][1] + ":" + self.lines[mid + 1][2]
                     except:
                         return ""
             else:
@@ -315,7 +303,7 @@ def parse(language, lineSource, skipWS = True, skipComments = None, packrat = Fa
         else:
             ld += 1
         lines.append((len(orig), lineSource.filename(), lineSource.lineno() - 1))
-        orig += u(line)
+        orig += line
 
     textlen = len(orig)
 
@@ -346,6 +334,6 @@ def parse(language, lineSource, skipWS = True, skipComments = None, packrat = Fa
         lineNo += 1
         nn -= 1
         lineCont = orig.splitlines()[nn]
-        raise SyntaxError("syntax error in " + u(file) + ":" + u(lineNo) + ": " + lineCont)
+        raise SyntaxError("syntax error in " + file + ":" + lineNo + ": " + lineCont)
 
     return result
