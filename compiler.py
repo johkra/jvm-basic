@@ -15,8 +15,10 @@ from lib.pyPEG import Symbol
 ALOAD = b"\x19"
 ASTORE = b"\x3a"
 GETSTATIC = b"\xb2"
-LDC = b"\x12"
+INVOKESTATIC = b"\xb8"
 INVOKEVIRTUAL = b"\xb6"
+LDC = b"\x12"
+SIPUSH = b"\x11"
 
 def create_code(file_name, message):
     """Write the compile code to a class file"""
@@ -62,6 +64,12 @@ class Compiler:
         open(self.class_name + ".class", "wb").write(self.code.write_class())
 
 def load_string_value(self, node):
+    if node.__name__ == "numeric":
+        value = int(node.what)
+        method_int_to_string = self.code.add_method_to_const_pool("java/lang/Integer", "toString", "(I)Ljava/lang/String;")
+        bytecode  = SIPUSH + struct.pack("!h", value)
+        bytecode += INVOKESTATIC + struct.pack("!h", method_int_to_string)
+        return bytecode
     if node.__name__ == "string":
         print_value = self.code.add_string_ref_to_const_pool(node.what[0])
         return LDC + struct.pack("B", print_value)
