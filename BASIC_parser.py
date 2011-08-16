@@ -23,16 +23,40 @@ from lib.pyPEG import parse, keyword, _and, _not
 #def simpleLanguage():   return function
 
 def comment():
-    return [re.compile(r"^'.*"), re.compile(r"^REM.*")]
+    return [re.compile(r"'.*"), re.compile(r"REM.*"), re.S]
+
+def numeric_variable():
+    return re.compile(r'\w+%')
+
+def string_variable():
+    return re.compile(r'\w+\$')
+
+def numeric():
+    return re.compile(r'\d+.\d+|\d+')
 
 def string():
     return '"', re.compile(r'[^"]*'), '"'
 
+def string_value():
+    return [string_variable, string]
+
+def numeric_value():
+    return [numeric_variable, numeric]
+
+def numeric_assignment():
+    return (numeric_variable, "=", numeric_value)
+
+def string_assignment():
+    return (string_variable, "=" , string_value)
+
+def assignment():
+    return [numeric_assignment, string_assignment]
+
 def print_statement():
-    return keyword("PRINT"), string
+    return keyword("PRINT"), string_value
 
 def statement():
-    return [print_statement]
+    return [print_statement, assignment]
 
 def statements():
     return -1, statement
@@ -42,4 +66,4 @@ def BASIC():
 
 def parse_to_AST(code):
     """Parse BASIC file. Returns pyAST."""
-    return parse(BASIC, code, skipComments=comment)
+    return parse(BASIC, code, skipWS=True, skipComments=comment)
