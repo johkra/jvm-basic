@@ -22,7 +22,7 @@ from lib.pyPEG import parse, keyword, _and, _not
 #def function():         return keyword("function"), symbol, parameterlist, block
 #def simpleLanguage():   return function
 
-def comment():
+def _comment():
     return [re.compile(r"'.*"), re.compile(r"REM.*"), re.S]
 
 def numeric_variable():
@@ -58,15 +58,15 @@ def assignment():
 def print_statement():
     return keyword("PRINT"), _value
 
-def statement():
+def _statement():
     return [print_statement, assignment]
 
 def statements():
-    return -1, statement
+    return -1, _statement
 
 def BASIC():
     return statements
 
 def parse_to_AST(code):
     """Parse BASIC file. Returns pyAST."""
-    return parse(BASIC, code, skipWS=True, skipComments=comment)
+    return parse(BASIC, code, skipWS=True, skipComments=_comment)
