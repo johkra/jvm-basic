@@ -14,20 +14,14 @@ from lib.pyPEG import Symbol
 
 def create_code(file_name, message):
     """Write the compile code to a class file"""
-    code = ClassFile(file_name.capitalize(), file_name)
-    method_bytecode = b"\x2a\xb7" + struct.pack("!h", 
-        code.add_method_to_const_pool("java/lang/Object", "<init>", "()V")
-    ) + b"\xb1"
-    code.add_method(0x0000, "<init>", "()V", 1, 1, method_bytecode)
-    
-    method_bytecode = b"\xb2" + struct.pack("!h", code.add_field_to_const_pool("java/lang/System", "out", "Ljava/io/PrintStream;")) + b"\x12" + struct.pack("B", code.add_string_ref_to_const_pool(message)) + b"\xb6" + struct.pack("!h", code.add_method_to_const_pool("java/io/PrintStream", "println", "(Ljava/lang/String;)V")) + b"\xb1"
-    code.add_method(0x0009, "main", "([Ljava/lang/String;)V", 2, 1, method_bytecode)
-    
-    open(file_name.capitalize() + ".class", "wb").write(code.write_class())
 
 class Compiler:
-    def __init__(self, functions):
+    def __init__(self, file_name, functions):
+        self.file_name = file_name.replace(".bas","")
+        self.class_name = self.file_name.capitalize()
         self.functions = functions
+        self.code = ClassFile(self.class_name, self.file_name)
+        self.method_bytecode = b""
 
     def parse(self, _fileinput):
         self.AST = parse_to_AST(_fileinput)
@@ -40,8 +34,27 @@ class Compiler:
         if type(tree) == Symbol:
             for function in self.functions:
                 if function.__name__ == tree.__name__:
-                    function(tree.what)
+                    function(self, tree.what)
             self._tree_walker(tree.what)
+
+    def save(self):
+        method_bytecode = b"\x2a\xb7" + struct.pack("!h",
+            self.code.add_method_to_const_pool("java/lang/Object", "<init>", "()V")
+        ) + b"\xb1"
+        self.code.add_method(0x0000, "<init>", "()V", 1, 1, method_bytecode)
+        self.method_bytecode += b"\xb1"
+        self.code.add_method(0x0009, "main", "([Ljava/lang/String;)V", 2, 1, self.method_bytecode)
+
+        open(self.class_name + ".class", "wb").write(self.code.write_class())
+
+def print_statement(self,args):
+    string_value = args[0].what[0]
+    if string_value.__name__ == "string":
+        field_print_stream = self.code.add_field_to_const_pool("java/lang/System", "out", "Ljava/io/PrintStream;")
+        print_value = self.code.add_string_ref_to_const_pool(string_value.what[0])
+        method_print_stream = self.code.add_method_to_const_pool("java/io/PrintStream", "println", "(Ljava/lang/String;)V")
+        self.method_bytecode += b"\xb2" + struct.pack("!h", field_print_stream) + b"\x12" + struct.pack("B", print_value) + b"\xb6" + struct.pack("!h", method_print_stream)
+
 
 def main():
     """Main function. Compiles a basic file to a class file."""
@@ -49,14 +62,11 @@ def main():
         print("Usage: %s file.bas" % (sys.argv[0]))
         sys.exit(1)
     messages = []
-    def print_statement(args):
-        string_value = args[0].what[0]
-        if string_value.__name__ == "string":
-            messages.append(string_value.what[0])
-    compiler = Compiler([print_statement])
+
+    file_name = sys.argv[1]
+    compiler = Compiler(file_name, [print_statement])
     compiler.parse(fileinput.input())
-    message = "\n".join(messages)
-    create_code(sys.argv[1].replace(".bas",""), message)
+    compiler.save()
 
 if __name__ == "__main__":
     main()
