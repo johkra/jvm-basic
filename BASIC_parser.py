@@ -15,6 +15,9 @@ def numeric_variable():
 def string_variable():
     return re.compile(r'\w+\$')
 
+def boolean():
+    return re.compile(r"TRUE|FALSE")
+
 def numeric():
     return re.compile(r'-?\d+')
 
@@ -36,8 +39,11 @@ def _string_value():
 def _numeric_value():
     return [numeric_expression, _numeric_simple_value]
 
+def _boolean_value():
+    return [boolean, boolean_conditional]
+
 def _value():
-    return [_string_value, _numeric_value]
+    return [_boolean_value, _string_value, _numeric_value]
 
 def numeric_assignment():
     return (numeric_variable, "=", _numeric_value)
@@ -47,6 +53,15 @@ def string_assignment():
 
 def assignment():
     return [numeric_assignment, string_assignment]
+
+def comparator():
+    return re.compile(r"==|<>|>=|<=|>|<")
+
+def boolean_conditional():
+    return _numeric_value, comparator, _numeric_value
+
+def if_statement():
+    return keyword("IF"), boolean_conditional, keyword("THEN"), statements, keyword("ENDIF")
 
 def print_statement():
     return keyword("PRINT"), _value

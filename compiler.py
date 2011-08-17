@@ -18,7 +18,13 @@ GETSTATIC = b"\xb2"
 GOTO = b"\xa7"
 IADD = b"\x60"
 IDIV = b"\x6c"
-IFLE = b"\x9e"
+IF_ICMPEQ = b"\x9f"
+IF_ICMPNE = b"\xa0"
+IF_ICMPGE = b"\xa2"
+IF_ICMPGT = b"\xa3"
+IF_ICMPLE = b"\xa4"
+IF_ICMPLT = b"\xa1"
+IFEQ = b"\x99"
 IINC = b"\x84"
 ILOAD = b"\x15"
 IMUL = b"\x68"
@@ -87,10 +93,35 @@ def load_string_value(self, node):
         method_int_to_string = self.code.add_method_to_const_pool("java/lang/Integer", "toString", "(I)Ljava/lang/String;")
         bytecode += INVOKESTATIC + struct.pack("!h", method_int_to_string)
         return bytecode
+    if re.match(r"^boolean", node.__name__):
+        bytecode = load_boolean_value(self, node)
+        method_int_to_string = self.code.add_method_to_const_pool("java/lang/Integer", "toString", "(I)Ljava/lang/String;")
+        bytecode += INVOKESTATIC + struct.pack("!h", method_int_to_string)
+        return bytecode
     if node.__name__ == "string":
         print_value = self.code.add_string_ref_to_const_pool(node.what[0])
         return LDC + struct.pack("B", print_value)
     return ALOAD + struct.pack("B", get_var_idx(self, node))
+
+def load_boolean_value(self, node):
+    if node.__name__ == "boolean":
+        return SIPUSH + struct.pack("!h", int(node.what == "TRUE"))
+    comparator = node.what[1].what
+    comparators = {
+        "==": IF_ICMPEQ,
+        "<>": IF_ICMPNE,
+        "<=": IF_ICMPLE,
+        ">=": IF_ICMPGE,
+        "<": IF_ICMPLT,
+        ">": IF_ICMPGT,
+    }
+    bytecode  = load_int_value(self, node.what[0])
+    bytecode += load_int_value(self, node.what[2])
+    bytecode += comparators[comparator] + struct.pack("!h", 9)
+    bytecode += SIPUSH + struct.pack("!h", 0)
+    bytecode += GOTO + struct.pack("!h", 6)
+    bytecode += SIPUSH + struct.pack("!h", 1)
+    return bytecode
 
 def load_int_value(self, node, fix_left_precedence=False):
     if node.__name__ == "numeric":
@@ -118,7 +149,7 @@ def load_int_value(self, node, fix_left_precedence=False):
             bytecode += term
         bytecode += ISTORE + struct.pack("B", self.vars[var_name])
         bytecode += ILOAD + struct.pack("B", self.vars[var_name])
-        bytecode += IFLE + struct.pack("!h", 10 + len(bytecode_load_base))
+        bytecode += IFEQ + struct.pack("!h", 10 + len(bytecode_load_base))
         bytecode += bytecode_load_base
         bytecode += IMUL
         bytecode += IINC + struct.pack("Bb", self.vars[var_name], -1)
