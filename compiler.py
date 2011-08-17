@@ -15,10 +15,17 @@ from lib.pyPEG import Symbol
 ALOAD = b"\x19"
 ASTORE = b"\x3a"
 GETSTATIC = b"\xb2"
+GOTO = b"\xa7"
+IADD = b"\x60"
+IDIV = b"\x6c"
+IFLE = b"\x9e"
+IINC = b"\x84"
 ILOAD = b"\x15"
+IMUL = b"\x68"
 INVOKESTATIC = b"\xb8"
 INVOKEVIRTUAL = b"\xb6"
 ISTORE = b"\x36"
+ISUB = b"\x64"
 LDC = b"\x12"
 SIPUSH = b"\x11"
 
@@ -61,7 +68,8 @@ class Compiler:
         ) + b"\xb1"
         self.code.add_method(0x0000, "<init>", "()V", 1, 1, method_bytecode)
         self.method_bytecode += b"\xb1"
-        self.code.add_method(0x0009, "main", "([Ljava/lang/String;)V", 2, len(self.vars), self.method_bytecode)
+        # TODO: Keep track of stack size
+        self.code.add_method(0x0009, "main", "([Ljava/lang/String;)V", 100, len(self.vars), self.method_bytecode)
 
         open(self.class_name + ".class", "wb").write(self.code.write_class())
 
@@ -84,7 +92,7 @@ def load_string_value(self, node):
         return LDC + struct.pack("B", print_value)
     return ALOAD + struct.pack("B", get_var_idx(self, node))
 
-def load_int_value(self, node):
+def load_int_value(self, node, fix_left_precedence=False):
     if node.__name__ == "numeric":
         value = int(node.what)
         try:
@@ -93,7 +101,50 @@ def load_int_value(self, node):
             print("Numeric constant %d is outside allowed range (-32768..32767) in %s" % (value, node.__name__.line))
             sys.exit(-1)
         return bytecode
-    return ILOAD + struct.pack("B", get_var_idx(self, node))
+    if node.__name__ == "numeric_variable":
+        return ILOAD + struct.pack("B", get_var_idx(self, node))
+    operator = node.what[1].what
+
+    if operator == "^":
+        var_name = "tmp"
+        self._add_var(var_name)
+        bytecode_load_base  = load_int_value(self, node.what[0])
+
+        bytecode  = SIPUSH + struct.pack("!h", 1)
+        term = load_int_value(self, node.what[2], fix_left_precedence=True)
+        if type(term) == tuple:
+            bytecode += term[0]
+        else:
+            bytecode += term
+        bytecode += ISTORE + struct.pack("B", self.vars[var_name])
+        bytecode += ILOAD + struct.pack("B", self.vars[var_name])
+        bytecode += IFLE + struct.pack("!h", 10 + len(bytecode_load_base))
+        bytecode += bytecode_load_base
+        bytecode += IMUL
+        bytecode += IINC + struct.pack("Bb", self.vars[var_name], -1)
+        bytecode += GOTO + struct.pack("!h", - (9 + len(bytecode_load_base)))
+        if type(term) == tuple:
+            bytecode += term[1]
+        return bytecode
+
+    operators = {
+        "+": IADD,
+        "-": ISUB,
+        "*": IMUL,
+        "/": IDIV
+    }
+
+    bytecode  = load_int_value(self, node.what[0])
+    term = load_int_value(self, node.what[2], fix_left_precedence=True)
+    bytecode2 = term
+    if type(term) == tuple:
+        bytecode2 = term[0]
+    bytecode2 += operators[operator]
+    if type(term) == tuple:
+        bytecode2 += term[1]
+    if fix_left_precedence and operator not in ["*", "/"]:
+        return (bytecode, bytecode2)
+    return bytecode+bytecode2
 
 def print_statement(self, args):
     field_print_stream = self.code.add_field_to_const_pool("java/lang/System", "out", "Ljava/io/PrintStream;")

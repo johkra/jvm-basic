@@ -21,11 +21,20 @@ def numeric():
 def string():
     return '"', re.compile(r'[^"]*'), '"'
 
+def _numeric_simple_value():
+    return [numeric, numeric_variable]
+
+def operator():
+    return re.compile(r"\+|-|\*|/|\^")
+
+def numeric_expression():
+    return _numeric_simple_value, -2, (operator, _numeric_value)
+
 def _string_value():
-    return [string_variable, string]
+    return [string, string_variable]
 
 def _numeric_value():
-    return [numeric_variable, numeric]
+    return [numeric_expression, _numeric_simple_value]
 
 def _value():
     return [_string_value, _numeric_value]
